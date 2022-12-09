@@ -1,0 +1,4 @@
+github.com/BurntSushi/toml v1.2.1 h1:9F2/+DoOYIOksmaJFPw1tGFy1eDnIJXg+UHjuD8lTak=
+github.com/BurntSushi/toml v1.2.1/go.mod h1:CxXYINrC8qIiEnFrOxCa7Jy5BFHlXnUU2pbicEuybxQ=
+github.com/digisan/go-generics v0.2.11 h1:l37gzGv+qwuL/VsZn+VGrDyEKYZhQavhA0p4ihijPH4=
+github.com/digisan/go-generics v0.2.11/go.mod h1:HoHbkpjEgiw3YQ3QaADIfeFt/kpdODb0qerSbs0PSBA=
