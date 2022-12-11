@@ -1,64 +1,90 @@
 package fileflatter
 
 import (
+	"bytes"
+	"encoding/csv"
 	"encoding/json"
+	"encoding/xml"
+	"io"
+	"os"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/digisan/go-generics/v2"
+	"gopkg.in/yaml.v3"
 )
 
-func TxtType(data []byte) string {
-
-	str := string(data)
-
-	switch {
-	case IsJSON(str):
-		return "json"
-
-	case IsTOML(str):
-		return "toml"
-
-	case IsXML(str):
-		return "xml"
-
-	case IsCSV(str):
-		return "csv"
-
-	default:
-		return "unknown"
-	}
-}
-
-func FlatContent(data []byte) (map[string]any, error) {
+func flatContent(data []byte) (map[string]any, error) {
 
 	var (
-		str    = string(data)
 		object = make(map[string]any)
-		reFlat map[string]any
 		err    error
 	)
 
-	t := FileType(data)
-
-	switch {
-	case IsJSON(str):
-		if err = json.Unmarshal([]byte(str), &object); err != nil {
+	switch TxtType(data) {
+	case JSON:
+		if err = json.Unmarshal(data, &object); err != nil {
 			return nil, err
 		}
-		reFlat = MapNestedToFlat(object)
 
-	case IsTOML(str):
-		m := map[string]any{}
-		_, err := toml.Decode(str, &m)
-		return err == nil && len(m) > 0
+	case TOML:
+		if _, err = toml.Decode(string(data), &object); err != nil {
+			return nil, err
+		}
 
-	case IsXML(str):
+	case YAML:
+		if err = yaml.Unmarshal(data, &object); err != nil {
+			return nil, err
+		}
 
-	case IsCSV(str):
+	case XML:
+		if err = xml.Unmarshal(data, &object); err != nil {
+			return nil, err
+		}
+
+	case CSV:
+		records, err := csv.NewReader(bytes.NewReader(data)).ReadAll()
+		if err != nil {
+			return nil, err
+		}
+		mIColHdr := make(map[int]string)
+		for i, row := range records {
+			// fmt.Printf("%+v\n", row)
+			switch i {
+			case 0: // headers
+				for iCol, hdr := range row {
+					object[hdr] = []any{}
+					mIColHdr[iCol] = hdr
+				}
+			default: // rows
+				for iCol, item := range row {
+					hdr := mIColHdr[iCol]
+					object[hdr] = append(object[hdr].([]any), item)
+				}
+			}
+		}
 
 	default:
-
+		panic("unknown data type in [flatContent]")
 	}
 
-	return reFlat, err
+	return MapNestedToFlat(object), err
+}
+
+func FlatContent[T Block](data T) (map[string]any, error) {
+	var in any = data
+	switch TypeOf(data) {
+	case "string":
+		return flatContent(StrToConstBytes(in.(string)))
+	case "[]uint8":
+		return flatContent(in.([]byte))
+	case "*os.File":
+		f := in.(*os.File)
+		defer func() { f.Seek(0, io.SeekStart) }()
+		bytes, err := io.ReadAll(f)
+		if err != nil {
+			return nil, err
+		}
+		return flatContent(bytes)
+	}
+	panic("shouldn't be here")
 }
