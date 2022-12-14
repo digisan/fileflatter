@@ -5,11 +5,13 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"os"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/digisan/go-generics/v2"
+	"github.com/digisan/gotk/strs"
 	"gopkg.in/yaml.v3"
 )
 
@@ -87,4 +89,17 @@ func FlatContent[T Block](data T) (map[string]any, error) {
 		return flatContent(bytes)
 	}
 	panic("shouldn't be here")
+}
+
+func PrintFlat(m map[string]any) {
+	ks, _ := MapToKVs(m, nil, nil)
+	ks = strs.SortPaths(ks...)
+	fmt.Println("\n------------------------------------")
+	for _, k := range ks {
+		keyLen := len(k)
+		keySpace := (keyLen/10 + 1) * 10
+		fmtstr := fmt.Sprintf("%%-%dv %%v\n", keySpace)
+		fmt.Printf(fmtstr, k+":", m[k])
+	}
+	fmt.Println("------------------------------------")
 }

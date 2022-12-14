@@ -7,7 +7,7 @@ import (
 )
 
 func TestFlatContent(t *testing.T) {
-	
+
 	f, err := os.Open("./data/sample.csv")
 	if err == nil {
 		fmt.Println("sample type:", TxtType(f))
@@ -29,4 +29,6 @@ func TestFlatContent(t *testing.T) {
 	fmt.Println()
 
 	fmt.Printf("%+v", GetCSVObjects(fm)[2])
+
+	PrintFlat(fm)
 }
