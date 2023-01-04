@@ -26,8 +26,8 @@ github.com/dgraph-io/ristretto v0.1.1 h1:6CWw5tJNgpegArSHpNHJKldNeq03FQCwYvfMVWa
 github.com/dgraph-io/ristretto v0.1.1/go.mod h1:S1GPSBCYCIhmVNfcth17y2zZtQT6wzkzgwUve0VDWWA=
 github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2 h1:tdlZCpZ/P9DhczCTSixgIKmwPv6+wP5DGjqLYw5SUiA=
 github.com/dgryski/go-farm v0.0.0-20190423205320-6a90982ecee2/go.mod h1:SqUrOPUnsFjfmXRMNPybcSiG0BgUW2AuFH8PAnS2iTw=
-github.com/digisan/go-generics v0.2.20 h1:crBgYI+k2WZ2IyaioNwiZLW1RP0wOBk9cIFZEk98/F4=
-github.com/digisan/go-generics v0.2.20/go.mod h1:HoHbkpjEgiw3YQ3QaADIfeFt/kpdODb0qerSbs0PSBA=
+github.com/digisan/go-generics v0.2.21 h1:t2Y99bZZE2gdkl7LJLHYUoHnbcMoVj5bHU9HZJWTapU=
+github.com/digisan/go-generics v0.2.21/go.mod h1:HoHbkpjEgiw3YQ3QaADIfeFt/kpdODb0qerSbs0PSBA=
 github.com/digisan/gotk v0.2.14 h1:kdRTNh+9diwq6dbIAP/JocBgJ1OZqkXc4SudgaOrye0=
 github.com/digisan/gotk v0.2.14/go.mod h1:+I5OZN9ssITW1NSOymtTAVRK/V+THZGYC9Iz15X1tLc=
 github.com/digisan/logkit v0.1.4 h1:kbs7nl7AqMou5IFm/RG68/HrxRsbu5G2Zfrvmev+CqQ=

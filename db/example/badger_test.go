@@ -23,7 +23,7 @@ func (o myObject) BadgerDB() *badger.DB {
 }
 
 func (o myObject) ID() any {
-	return "" //o.Id
+	return o.Id
 }
 
 func (o *myObject) Unmarshal(fm map[string]any) error {
@@ -54,32 +54,79 @@ func TestUpdate(t *testing.T) {
 	bdb.InitDB("", "")
 	defer bdb.CloseDB()
 
-	obj := myObject{
-		Id: 123,
-		Wealth: struct {
-			Account string
-			Money   float64
-		}{
-			Account: "abcdefg",
-			Money:   1000,
+	objs := []myObject{
+		{
+			Id: 123,
+			Wealth: struct {
+				Account string
+				Money   float64
+			}{
+				Account: "abcdefg",
+				Money:   1000,
+			},
+		},
+		{
+			Id: 234,
+			Wealth: struct {
+				Account string
+				Money   float64
+			}{
+				Account: "ABCDEFG",
+				Money:   2000,
+			},
 		},
 	}
-	fmt.Printf("%+v\n", obj)
+	fmt.Printf("%+v\n", objs)
 
-	id := ""
 	var err error
 
-	if id, err = bdb.UpsertObjectInBadger(&obj); err != nil {
+	id0 := ""
+	if id0, err = bdb.UpsertObject(&objs[0]); err != nil {
 		fmt.Println(err)
 		return
 	}
+	fmt.Println(id0)
 
-	fmt.Println(id)
+	id1 := ""
+	if id1, err = bdb.UpsertObject(&objs[1]); err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(id1)
 
-	obj1, err := bdb.GetObject[myObject](id)
+	//////////////////////////////////////////////
+
+	// objR0, err := bdb.GetObject[myObject](id0)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// fmt.Printf("%+v\n", *objR0)
+
+	// objR1, err := bdb.GetObject[myObject](id1)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// fmt.Printf("%+v\n", *objR1)
+
+	//////////////////////////////////////////////
+
+	ids, err := bdb.GetIDs[myObject]("Money", 1000)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Printf("%+v\n", *obj1)
+	if len(ids) == 0 {
+		fmt.Println("NOT Found")
+	}
+	for _, id := range ids {
+		objR, err := bdb.GetObject[myObject](id)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("%+v\n", *objR)
+	}
+
 }
