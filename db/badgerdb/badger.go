@@ -125,7 +125,7 @@ func GetObject[V any, T PtrBadgerAccessible[V]](id string) (T, error) {
 	return rt, rt.Unmarshal(fm)
 }
 
-// Search: get id group with m map conditions
+// Search: get id group with (rpath, val) conditions
 func GetIDs[V any, T PtrBadgerAccessible[V]](rpath string, val any) (ids []string, err error) {
 
 	// 2) KEY: [val:$rpath:@id]; VAL: [] --> no iter, accurate for id, then use this id for value
@@ -156,6 +156,62 @@ func GetIDs[V any, T PtrBadgerAccessible[V]](rpath string, val any) (ids []strin
 		return nil
 	})
 }
+
+// fm: map[rpath]value
+func FetchIDsRP[V any, T PtrBadgerAccessible[V]](fm map[string]any) ([]string, error) {
+
+	idsGrp := [][]string{}
+	for rpath, val := range fm {
+
+		var (
+			valBuf   = StrToConstBytes(fmt.Sprint(val))
+			rpathBuf = StrToConstBytes(rpath)
+			prefix   = AppendBytes(valBuf, SV, rpathBuf)
+			ids      = []string{}
+			err      error
+		)
+
+		err = T(new(V)).BadgerDB().View(func(txn *badger.Txn) error {
+			opts := badger.DefaultIteratorOptions
+			it := txn.NewIterator(opts)
+			defer it.Close()
+
+			itemProc := func(item *badger.Item) error {
+				return item.Value(func(val []byte) error {
+					key := item.Key()
+					ids = append(ids, ConstBytesToStr(key[bytes.LastIndex(key, SI)+LenOfSI:]))
+					return nil
+				})
+			}
+			for it.Seek(prefix); it.ValidForPrefix(prefix); it.Next() {
+				if err = itemProc(it.Item()); err != nil {
+					return err
+				}
+			}
+			return nil
+		})
+
+		if err != nil {
+			return nil, err
+		}
+
+		idsGrp = append(idsGrp, ids)
+	}
+
+	rt := []string{}
+	idsMerged := SmashArrays(idsGrp...)
+	for _, id := range SmashSets(idsGrp...) {
+		if Count(idsMerged, id) == len(fm) {
+			rt = append(rt, id)
+		}
+	}
+
+	return rt, nil
+}
+
+// fm: map[path]value
+// func FetchIDs[V any, T PtrBadgerAccessible[V]](fm map[string]any) (ids []string, err error) {
+// }
 
 // func SearchIDs
 

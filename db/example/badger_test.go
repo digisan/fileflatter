@@ -23,7 +23,7 @@ func (o myObject) BadgerDB() *badger.DB {
 }
 
 func (o myObject) ID() any {
-	return o.Id
+	return "" // o.Id
 }
 
 func (o *myObject) Unmarshal(fm map[string]any) error {
@@ -62,17 +62,17 @@ func TestUpdate(t *testing.T) {
 				Money   float64
 			}{
 				Account: "abcdefg",
-				Money:   1000,
+				Money:   100,
 			},
 		},
 		{
-			Id: 234,
+			Id: 123,
 			Wealth: struct {
 				Account string
 				Money   float64
 			}{
 				Account: "ABCDEFG",
-				Money:   2000,
+				Money:   200,
 			},
 		},
 	}
@@ -112,7 +112,13 @@ func TestUpdate(t *testing.T) {
 
 	//////////////////////////////////////////////
 
-	ids, err := bdb.GetIDs[myObject]("Money", 1000)
+	// ids, err := bdb.GetIDs[myObject]("Money", 1000)
+
+	ids, err := bdb.FetchIDsRP[myObject](map[string]any{
+		"Id":    123,
+		"Money": 100,
+	})
+
 	if err != nil {
 		fmt.Println(err)
 		return
