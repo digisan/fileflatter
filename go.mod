@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/dgraph-io/badger/v3 v3.2103.5
-	github.com/digisan/go-generics v0.2.22
+	github.com/digisan/go-generics v0.2.24
 	github.com/digisan/gotk v0.2.14
 	github.com/digisan/logkit v0.1.4
 	github.com/google/uuid v1.3.0
