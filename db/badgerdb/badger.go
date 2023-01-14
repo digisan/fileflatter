@@ -65,7 +65,7 @@ func UpsertObject[V any, T PtrBadgerAccessible[V]](object T) (string, error) {
 
 		// 2) KEY: [val:$rpath:@id]; VAL: [] --> no iter, accurate for id, then use this id for value
 		//
-		if len(v) <= 64 {
+		if len(v) <= 36 {
 			k = AppendBytes(valBuf, SV, rpathBuf, SI, idBuf)
 			v = []byte{}
 			if err := wb.Set(k, v); err != nil {
@@ -187,7 +187,6 @@ func GetIDs[V any, T PtrBadgerAccessible[V]](rpath string, val any) (ids []strin
 
 // rfm: map[rpath]value
 func FetchIDsRP[V any, T PtrBadgerAccessible[V]](rfm map[string]any) ([]string, error) {
-
 	idsGrp := [][]string{}
 	for rpath, val := range rfm {
 		ids, err := GetIDs[V, T](rpath, val)
@@ -216,6 +215,56 @@ func FetchIDs[V any, T PtrBadgerAccessible[V]](fm map[string]any) ([]string, err
 	return FetchIDsRP[V, T](rfm)
 }
 
-// func SearchIDs
+// rffm: map[rpath]filter
+func SearchIDsRP[V any, T PtrBadgerAccessible[V]](prefix string, rffm map[string]func(rpath string, value []byte) bool) (ids []string, err error) {
+
+	// 3) KEY: [rpath:@id]; VAL: [val] --> Iter and look for id, then use this id for value
+
+	var (
+		prefixBuf = StrToConstBytes(prefix)
+		mIdCnt    = make(map[string]int)
+		nFilter   = len(rffm)
+	)
+
+	err = T(new(V)).BadgerDB().View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		itemProc := func(item *badger.Item) error {
+			return item.Value(func(val []byte) error {
+				var (
+					key   = item.Key()
+					id    = ConstBytesToStr(key[bytes.LastIndex(key, SI)+LenOfSI:])
+					rpath = ConstBytesToStr(key[:bytes.Index(key, SI)])
+				)
+
+				filter, ok := rffm[rpath]
+				if ok && filter(rpath, val) {
+					mIdCnt[id]++
+				}
+				return nil
+			})
+		}
+		for it.Seek(prefixBuf); it.ValidForPrefix(prefixBuf); it.Next() {
+			if err = itemProc(it.Item()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	for id, cnt := range mIdCnt {
+		if cnt == nFilter {
+			ids = append(ids, id)
+		}
+	}
+
+	return ids, err
+}
+
+// func SearchIDs[V any, T PtrBadgerAccessible[V]](prefix string, filter func(path string, value any) bool) ([]string, error) {
+
+// }
 
 // Delete

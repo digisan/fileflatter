@@ -50,7 +50,7 @@ var (
 				Account: "ABCDEFG",
 				Money:   200,
 			},
-			Arr: []int{1, 2, 3, 4},
+			Arr: []int{0, 1, 2, 3, 4},
 			M: map[int]string{
 				1234: "m1234",
 				2345: "m2345",
@@ -69,7 +69,7 @@ func (o myObject) BadgerDB() *badger.DB {
 }
 
 func (o myObject) ID() any {
-	return o.Id
+	return "" // o.Id
 }
 
 func (o *myObject) Unmarshal(fm map[string]any) error {
@@ -113,36 +113,51 @@ func (o *myObject) Unmarshal(fm map[string]any) error {
 	return nil
 }
 
-func TestUpdate(t *testing.T) {
+func TestDB(t *testing.T) {
 
 	bdb.InitDB("", "")
 	defer bdb.CloseDB()
 
-	fmt.Printf("%+v\n", objs)
+	fmt.Println()
+
+	fmt.Printf("original objects: %+v\n\n", objs)
 
 	ids, err := bdb.UpsertObjects(SlcToPtrSlc(objs...)...)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	fmt.Println(ids)
+	fmt.Printf("storage ids: %+v\n\n", ids)
 
 	//////////////////////////////////////////////
 
-	objects, err := bdb.GetObjects[myObject](ids...)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	fmt.Printf("%+v\n", PtrSlcToSlc(objects...))
+	// objects, err := bdb.GetObjects[myObject](ids...)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// fmt.Printf("%+v\n", PtrSlcToSlc(objects...))
 
 	//////////////////////////////////////////////
 
 	// ids, err := bdb.GetIDs[myObject]("Money", 1000)
 
-	ids, err = bdb.FetchIDsRP[myObject](map[string]any{
-		"Id":    456,
-		"Money": 200,
+	// ids, err = bdb.FetchIDsRP[myObject](map[string]any{
+	// 	"Id":    456,
+	// 	"Money": 200,
+	// })
+
+	ids, err = bdb.SearchIDsRP[myObject]("", map[string]func(rpath string, value []byte) bool{
+
+		"Id": func(rpath string, value []byte) bool {
+			v, ok := AnyTryToType[int](value)
+			return ok && v > 56
+		},
+
+		"0.Arr": func(rpath string, value []byte) bool {
+			v, ok := AnyTryToType[int](value)
+			return ok && v < 1
+		},
 	})
 
 	if err != nil {
@@ -158,6 +173,6 @@ func TestUpdate(t *testing.T) {
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("%+v\n", *objR)
+		fmt.Printf("search output: %+v\n\n", *objR)
 	}
 }
