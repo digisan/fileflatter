@@ -65,7 +65,7 @@ var (
 
 // dbname is one of `bdb.InitDB` names
 func (o myObject) BadgerDB() *badger.DB {
-	return bdb.DbGrp.DBs[""]
+	return bdb.DbGrp.DBs["test1"] // "test1" is one of dbnames in 'InitDB(, ...dbname)'
 }
 
 func (o myObject) ID() any {
@@ -115,7 +115,7 @@ func (o *myObject) Unmarshal(fm map[string]any) error {
 
 func TestDB(t *testing.T) {
 
-	bdb.InitDB("", "")
+	bdb.InitDB("./data", "test1")
 	defer bdb.CloseDB()
 
 	fmt.Printf("\noriginal objects: %+v\n\n", objs)
