@@ -38,7 +38,7 @@ var (
 			},
 			MA: map[string][]int{
 				"MA1": {111, 222, 333},
-				"MA2": {444, 555},
+				"MA2": {11, 22, 33},
 			},
 		},
 		{
@@ -50,14 +50,14 @@ var (
 				Account: "ABCDEFG",
 				Money:   200,
 			},
-			Arr: []int{0, 1, 2, 3, 4},
+			Arr: []int{4, 5, 6},
 			M: map[int]string{
 				1234: "m1234",
 				2345: "m2345",
 			},
 			MA: map[string][]int{
-				"MA1": {666, 777, 888},
-				"MA2": {999, 111},
+				"MA1": {44, 55, 66},
+				"MA2": {444, 555, 666},
 			},
 		},
 	}
@@ -74,12 +74,12 @@ func (o myObject) ID() any {
 
 func (o *myObject) Unmarshal(fm map[string]any) error {
 
-	// simple primitive
+	// single primitive
 	if err := FlatMapSetField[int](fm, o, "Id"); err != nil {
 		return err
 	}
 
-	// array of primitive
+	// primitives
 	if err := FlatMapSetFieldAsSlc[int](fm, o, "Arr"); err != nil {
 		return err
 	}
@@ -89,7 +89,7 @@ func (o *myObject) Unmarshal(fm map[string]any) error {
 		return err
 	}
 
-	// map value of primitive array
+	// map value of primitives
 	if err := FlatMapSetFieldAsSlcValMap[string, int](fm, o, "MA"); err != nil {
 		return err
 	}
@@ -118,10 +118,19 @@ func TestDB(t *testing.T) {
 	bdb.InitDB("", "")
 	defer bdb.CloseDB()
 
-	fmt.Println()
+	fmt.Printf("\noriginal objects: %+v\n\n", objs)
 
-	fmt.Printf("original objects: %+v\n\n", objs)
+	// *** store single object ***
+	//
+	// id, err := bdb.UpsertObject(&objs[0])
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	return
+	// }
+	// fmt.Printf("storage ids: %+v\n\n", id)
 
+	// *** store objects ***
+	//
 	ids, err := bdb.UpsertObjects(SlcToPtrSlc(objs...)...)
 	if err != nil {
 		fmt.Println(err)
@@ -131,6 +140,8 @@ func TestDB(t *testing.T) {
 
 	//////////////////////////////////////////////
 
+	// *** load object ***
+	//
 	// objects, err := bdb.GetObjects[myObject](ids...)
 	// if err != nil {
 	// 	fmt.Println(err)
@@ -140,25 +151,64 @@ func TestDB(t *testing.T) {
 
 	//////////////////////////////////////////////
 
-	// ids, err := bdb.GetIDs[myObject]("Money", 1000)
+	// *** search object id(s) ***
+	//
 
-	// ids, err = bdb.FetchIDsRP[myObject](map[string]any{
+	// ids, err = bdb.GetID[myObject]("Money", 100)
+
+	// ids, err = bdb.FetchIDByRP[myObject](map[string]any{
 	// 	"Id":    456,
 	// 	"Money": 200,
 	// })
 
-	ids, err = bdb.SearchIDsRP[myObject]("", map[string]func(rpath string, value []byte) bool{
-
-		"Id": func(rpath string, value []byte) bool {
-			v, ok := AnyTryToType[int](value)
-			return ok && v > 56
-		},
-
-		"0.Arr": func(rpath string, value []byte) bool {
-			v, ok := AnyTryToType[int](value)
-			return ok && v < 1
-		},
+	ids, err = bdb.SearchIDByRPSgl[myObject]("Id", func(rpath string, value []byte) bool {
+		v, ok := AnyTryToType[int](value)
+		return ok && v < 156
 	})
+
+	// ids, err = bdb.SearchIDByRPSlc[myObject]("#.MA1", func(rpath string, idx int, value []byte) bool {
+	// 	if v, ok := AnyTryToType[int](value); ok {
+	// 		switch idx {
+	// 		case 0:
+	// 			return v == 44
+	// 		case 1:
+	// 			return v == 55
+	// 		case 2:
+	// 			return v == 66
+	// 		}
+	// 	}
+	// 	return false
+	// }, 3)
+
+	// ids, err = bdb.SearchIDByRPMap[string, myObject]("*.Wealth", func(rpath string, key any, value []byte) bool {
+	// 	switch key {
+	// 	case "Account":
+	// 		if acc, ok := AnyTryToType[string](value); ok {
+	// 			return acc == "abcdefg"
+	// 		}
+	// 	case "Money":
+	// 		if money, ok := AnyTryToType[int](value); ok {
+	// 			return money < 150
+	// 		}
+	// 	}
+	// 	return false
+	// }, 2)
+
+	// ids, err = bdb.SearchIDByRPMap[int, myObject]("*.M", func(rpath string, key any, value []byte) bool {
+	// 	switch key {
+	// 	case 123:
+	// 		if v, ok := AnyTryToType[string](value); ok {
+	// 			return v == "m123"
+	// 		}
+	// 	case 234:
+	// 		if v, ok := AnyTryToType[string](value); ok {
+	// 			return v == "m234"
+	// 		}
+	// 	}
+	// 	return false
+	// }, 2)
+
+	////////////////////////////////////////////////////////////////////////////////////
 
 	if err != nil {
 		fmt.Println(err)
@@ -167,12 +217,16 @@ func TestDB(t *testing.T) {
 	if len(ids) == 0 {
 		fmt.Println("NOT Found")
 	}
+
+	// *** get object from its id ***
+	//
 	for _, id := range ids {
 		objR, err := bdb.GetObject[myObject](id)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("search output: %+v\n\n", *objR)
+		fmt.Printf("search output: %+v\n", *objR)
 	}
+	fmt.Println()
 }

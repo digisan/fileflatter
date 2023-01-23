@@ -3,11 +3,18 @@ package badgerdb
 import (
 	"bytes"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/dgraph-io/badger/v3"
 	. "github.com/digisan/go-generics/v2"
 	"github.com/digisan/gotk/strs"
 	"github.com/google/uuid"
+)
+
+const (
+	AsteriskDot = "*."
+	HashDot     = "#."
 )
 
 var (
@@ -154,7 +161,7 @@ func GetObjects[V any, T PtrBadgerAccessible[V]](ids ...string) (rt []T, err err
 }
 
 // Search: get id group with (rpath, val) conditions
-func GetIDs[V any, T PtrBadgerAccessible[V]](rpath string, val any) (ids []string, err error) {
+func GetID[V any, T PtrBadgerAccessible[V]](rpath string, val any) (ids []string, err error) {
 
 	// 2) KEY: [val:$rpath:@id]; VAL: [] --> no iter, accurate for id, then use this id for value
 
@@ -186,10 +193,10 @@ func GetIDs[V any, T PtrBadgerAccessible[V]](rpath string, val any) (ids []strin
 }
 
 // rfm: map[rpath]value
-func FetchIDsRP[V any, T PtrBadgerAccessible[V]](rfm map[string]any) ([]string, error) {
+func FetchIDByRP[V any, T PtrBadgerAccessible[V]](rfm map[string]any) ([]string, error) {
 	idsGrp := [][]string{}
 	for rpath, val := range rfm {
-		ids, err := GetIDs[V, T](rpath, val)
+		ids, err := GetID[V, T](rpath, val)
 		if err != nil {
 			return nil, err
 		}
@@ -207,24 +214,75 @@ func FetchIDsRP[V any, T PtrBadgerAccessible[V]](rfm map[string]any) ([]string, 
 }
 
 // fm: map[path]value
-func FetchIDs[V any, T PtrBadgerAccessible[V]](fm map[string]any) ([]string, error) {
+func FetchID[V any, T PtrBadgerAccessible[V]](fm map[string]any) ([]string, error) {
 	rfm := make(map[string]any)
 	for k, v := range fm {
 		rfm[strs.ReversePath(k)] = v
 	}
-	return FetchIDsRP[V, T](rfm)
+	return FetchIDByRP[V, T](rfm)
 }
 
-// rffm: map[rpath]filter
-func SearchIDsRP[V any, T PtrBadgerAccessible[V]](prefix string, rffm map[string]func(rpath string, value []byte) bool) (ids []string, err error) {
+type FilterRP4Sgl func(rpath string, value []byte) bool
+type FilterRP4Slc func(rpath string, idx int, value []byte) bool
+type FilterRP4Map func(rpath string, key any, value []byte) bool
+
+// [Object-Type]
+func SearchIDByRPSgl[V any, T PtrBadgerAccessible[V]](prefixRP string, filter FilterRP4Sgl) (ids []string, err error) {
 
 	// 3) KEY: [rpath:@id]; VAL: [val] --> Iter and look for id, then use this id for value
 
 	var (
-		prefixBuf = StrToConstBytes(prefix)
-		mIdCnt    = make(map[string]int)
-		nFilter   = len(rffm)
+		prefixBuf = StrToConstBytes(prefixRP)
 	)
+	err = T(new(V)).BadgerDB().View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		itemProc := func(item *badger.Item) error {
+			return item.Value(func(val []byte) error {
+				var (
+					key   = item.Key()
+					id    = ConstBytesToStr(key[bytes.LastIndex(key, SI)+LenOfSI:])
+					rpath = ConstBytesToStr(key[:bytes.Index(key, SI)])
+				)
+				if filter == nil || (filter != nil && filter(rpath, val)) {
+					ids = append(ids, id)
+				}
+				return nil
+			})
+		}
+		for it.Seek(prefixBuf); it.ValidForPrefix(prefixBuf); it.Next() {
+			if err = itemProc(it.Item()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	return ids, err
+}
+
+// [Object-Type]
+func SearchIDByRPSlc[V any, T PtrBadgerAccessible[V]](hashDotRP string, filter FilterRP4Slc, nCriteria int) (ids []string, err error) {
+
+	// 3) KEY: [rpath:@id]; VAL: [val] --> Iter and look for id, then use this id for value
+
+	if !strings.HasPrefix(hashDotRP, HashDot) {
+		return nil, fmt.Errorf("[hashDotRP] must start with '%v'", HashDot)
+	}
+	if filter == nil {
+		return nil, fmt.Errorf("[filter] cannot be nil")
+	}
+
+	var (
+		mIdCnt = make(map[string]int)
+	)
+
+	rPathSlc := strings.TrimPrefix(hashDotRP, HashDot)
+	restr := fmt.Sprintf(`^\d+.%s`, rPathSlc)
+	restr = strings.ReplaceAll(restr, ".", "\\.")
+	r := regexp.MustCompile(restr)
 
 	err = T(new(V)).BadgerDB().View(func(txn *badger.Txn) error {
 		opts := badger.DefaultIteratorOptions
@@ -238,15 +296,22 @@ func SearchIDsRP[V any, T PtrBadgerAccessible[V]](prefix string, rffm map[string
 					id    = ConstBytesToStr(key[bytes.LastIndex(key, SI)+LenOfSI:])
 					rpath = ConstBytesToStr(key[:bytes.Index(key, SI)])
 				)
-
-				filter, ok := rffm[rpath]
-				if ok && filter(rpath, val) {
+				if !r.MatchString(rpath) {
+					return nil
+				}
+				idx := 0
+				if p := strings.Index(rpath, "."); p > -1 {
+					if num, ok := AnyTryToType[int](rpath[:p]); ok {
+						idx = num
+					}
+				}
+				if filter != nil && filter(rpath, idx, val) {
 					mIdCnt[id]++
 				}
 				return nil
 			})
 		}
-		for it.Seek(prefixBuf); it.ValidForPrefix(prefixBuf); it.Next() {
+		for it.Seek([]byte{}); it.ValidForPrefix([]byte{}); it.Next() {
 			if err = itemProc(it.Item()); err != nil {
 				return err
 			}
@@ -254,8 +319,8 @@ func SearchIDsRP[V any, T PtrBadgerAccessible[V]](prefix string, rffm map[string
 		return nil
 	})
 
-	for id, cnt := range mIdCnt {
-		if cnt == nFilter {
+	for id, nc := range mIdCnt {
+		if nc >= nCriteria {
 			ids = append(ids, id)
 		}
 	}
@@ -263,8 +328,69 @@ func SearchIDsRP[V any, T PtrBadgerAccessible[V]](prefix string, rffm map[string
 	return ids, err
 }
 
-// func SearchIDs[V any, T PtrBadgerAccessible[V]](prefix string, filter func(path string, value any) bool) ([]string, error) {
+// [ByRPMap's Key-Type, Object-Type]
+func SearchIDByRPMap[KT, V any, T PtrBadgerAccessible[V]](asteriskDotRP string, filter FilterRP4Map, nCriteria int) (ids []string, err error) {
 
-// }
+	// 3) KEY: [rpath:@id]; VAL: [val] --> Iter and look for id, then use this id for value
+
+	if !strings.HasPrefix(asteriskDotRP, AsteriskDot) {
+		return nil, fmt.Errorf("[asteriskDotRP] must start with '%v'", AsteriskDot)
+	}
+	if filter == nil {
+		return nil, fmt.Errorf("[filter] cannot be nil")
+	}
+
+	var (
+		mIdCnt = make(map[string]int)
+	)
+
+	rPathSlc := strings.TrimPrefix(asteriskDotRP, AsteriskDot)
+	restr := fmt.Sprintf(`^\w+.%s`, rPathSlc)
+	restr = strings.ReplaceAll(restr, ".", "\\.")
+	r := regexp.MustCompile(restr)
+
+	err = T(new(V)).BadgerDB().View(func(txn *badger.Txn) error {
+		opts := badger.DefaultIteratorOptions
+		it := txn.NewIterator(opts)
+		defer it.Close()
+
+		itemProc := func(item *badger.Item) error {
+			return item.Value(func(val []byte) error {
+				var (
+					key   = item.Key()
+					id    = ConstBytesToStr(key[bytes.LastIndex(key, SI)+LenOfSI:])
+					rpath = ConstBytesToStr(key[:bytes.Index(key, SI)])
+				)
+				if !r.MatchString(rpath) {
+					return nil
+				}
+				mapKey := *new(KT)
+				if p := strings.Index(rpath, "."); p > -1 {
+					if field, ok := AnyTryToType[KT](rpath[:p]); ok {
+						mapKey = field
+					}
+				}
+				if filter != nil && filter(rpath, mapKey, val) {
+					mIdCnt[id]++
+				}
+				return nil
+			})
+		}
+		for it.Seek([]byte{}); it.ValidForPrefix([]byte{}); it.Next() {
+			if err = itemProc(it.Item()); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	for id, nc := range mIdCnt {
+		if nc >= nCriteria {
+			ids = append(ids, id)
+		}
+	}
+
+	return ids, err
+}
 
 // Delete
