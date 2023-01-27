@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-func flatContent(data []byte) (map[string]any, error) {
+func flatContent(data []byte, half bool) (map[string]any, error) {
 
 	var (
 		object = make(map[string]any)
@@ -69,16 +69,20 @@ func flatContent(data []byte) (map[string]any, error) {
 		panic("unknown data type in [flatContent]")
 	}
 
-	return MapNestedToFlat(object), err
+	if half {
+		return MapNestedToHalfFlat(object)
+	}
+
+	return MapNestedToFlat(object), nil
 }
 
-func FlatContent[T Block](data T) (map[string]any, error) {
+func FlatContent[T Block](data T, half bool) (map[string]any, error) {
 	var in any = data
 	switch TypeOf(data) {
 	case "string":
-		return flatContent(StrToConstBytes(in.(string)))
+		return flatContent(StrToConstBytes(in.(string)), half)
 	case "[]uint8":
-		return flatContent(in.([]byte))
+		return flatContent(in.([]byte), half)
 	case "*os.File":
 		f := in.(*os.File)
 		defer func() { f.Seek(0, io.SeekStart) }()
@@ -86,7 +90,7 @@ func FlatContent[T Block](data T) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return flatContent(bytes)
+		return flatContent(bytes, half)
 	}
 	panic("shouldn't be here")
 }

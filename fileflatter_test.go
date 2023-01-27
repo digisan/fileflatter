@@ -14,7 +14,7 @@ func TestFlatContent(t *testing.T) {
 	}
 	fmt.Println()
 
-	fm, err := FlatContent(f)
+	fm, err := FlatContent(f, false)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -23,12 +23,13 @@ func TestFlatContent(t *testing.T) {
 	}
 
 	fmt.Println()
-
-	fmt.Printf("%+v", GetCSVObjects(fm, 1, 2, 0)[2])
-
 	fmt.Println()
 
-	fmt.Printf("%+v", GetCSVObjects(fm)[2])
+	fmt.Printf("%+v\n", GetCSVObjects(fm, 1, 2, 0)[1])
 
-	PrintFlat(fm)
+	// fmt.Println()
+
+	// fmt.Printf("%+v", GetCSVObjects(fm)[2])
+
+	// PrintFlat(fm)
 }
