@@ -6,8 +6,8 @@ require (
 	github.com/BurntSushi/toml v1.2.1
 	github.com/dgraph-io/badger/v3 v3.2103.5
 	github.com/digisan/go-generics v0.2.31
-	github.com/digisan/gotk v0.2.14
-	github.com/digisan/logkit v0.1.4
+	github.com/digisan/gotk v0.2.15
+	github.com/digisan/logkit v0.1.5
 	github.com/google/uuid v1.3.0
 	github.com/h2non/filetype v1.1.3
 	gopkg.in/yaml.v3 v3.0.1
