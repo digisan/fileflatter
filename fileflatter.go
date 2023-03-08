@@ -5,12 +5,14 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 
 	"github.com/BurntSushi/toml"
 	. "github.com/digisan/go-generics/v2"
+	dt "github.com/digisan/gotk/data-type"
 	"github.com/digisan/gotk/strs"
 	"gopkg.in/yaml.v3"
 )
@@ -22,28 +24,28 @@ func flatContent(data []byte, half bool) (map[string]any, error) {
 		err    error
 	)
 
-	switch TxtType(data) {
-	case JSON:
+	switch dt.TxtType(data) {
+	case dt.JSON:
 		if err = json.Unmarshal(data, &object); err != nil {
 			return nil, err
 		}
 
-	case TOML:
+	case dt.TOML:
 		if _, err = toml.Decode(string(data), &object); err != nil {
 			return nil, err
 		}
 
-	case YAML:
+	case dt.YAML:
 		if err = yaml.Unmarshal(data, &object); err != nil {
 			return nil, err
 		}
 
-	case XML:
+	case dt.XML:
 		if err = xml.Unmarshal(data, &object); err != nil {
 			return nil, err
 		}
 
-	case CSV:
+	case dt.CSV:
 		records, err := csv.NewReader(bytes.NewReader(data)).ReadAll()
 		if err != nil {
 			return nil, err
@@ -66,7 +68,7 @@ func flatContent(data []byte, half bool) (map[string]any, error) {
 		}
 
 	default:
-		panic("unknown data type in [flatContent]")
+		return nil, errors.New("unknown data type in [flatContent]")
 	}
 
 	if half {
@@ -76,7 +78,7 @@ func flatContent(data []byte, half bool) (map[string]any, error) {
 	return MapNestedToFlat(object), nil
 }
 
-func FlatContent[T Block](data T, half bool) (map[string]any, error) {
+func FlatContent[T dt.Block](data T, half bool) (map[string]any, error) {
 	var in any = data
 	switch TypeOf(data) {
 	case "string":

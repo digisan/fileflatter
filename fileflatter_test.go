@@ -4,13 +4,15 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	dt "github.com/digisan/gotk/data-type"
 )
 
 func TestFlatContent(t *testing.T) {
 
 	f, err := os.Open("./data/sample.csv")
 	if err == nil {
-		fmt.Println("sample type:", TxtType(f))
+		fmt.Println("sample type:", dt.TxtType(f))
 	}
 	fmt.Println()
 
