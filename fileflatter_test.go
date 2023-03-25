@@ -12,7 +12,7 @@ func TestFlatContent(t *testing.T) {
 
 	f, err := os.Open("./data/sample.csv")
 	if err == nil {
-		fmt.Println("sample type:", dt.TxtType(f))
+		fmt.Println("sample type:", dt.DataType(f))
 	}
 	fmt.Println()
 

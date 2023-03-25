@@ -24,7 +24,7 @@ func flatContent(data []byte, half bool) (map[string]any, error) {
 		err    error
 	)
 
-	switch dt.TxtType(data) {
+	switch dt.DataType(data) {
 	case dt.JSON:
 		if err = json.Unmarshal(data, &object); err != nil {
 			return nil, err
