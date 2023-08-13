@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v4"
 	. "github.com/digisan/go-generics/v2"
 	"github.com/digisan/gotk/strs"
 	"github.com/google/uuid"

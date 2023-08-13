@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/dgraph-io/badger/v3"
+	"github.com/dgraph-io/badger/v4"
 	bdb "github.com/digisan/fileflatter/db/badgerdb"
 	. "github.com/digisan/go-generics/v2"
 )
